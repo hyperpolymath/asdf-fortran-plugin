@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+set -euo pipefail
+PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${PLUGIN_DIR}/lib/utils.bash"
+
+install_fortran() {
+  local version="${ASDF_INSTALL_VERSION:-}" install_path="${ASDF_INSTALL_PATH:-}"
+  local download_path="${ASDF_DOWNLOAD_PATH:-}"
+  [[ -z "${version}" ]] && fail "ASDF_INSTALL_VERSION required"
+  [[ -z "${install_path}" ]] && fail "ASDF_INSTALL_PATH required"
+
+  log_info "Installing fortran ${version}..."
+
+  if [[ -z "${download_path}" ]] || [[ ! -d "${download_path}" ]]; then
+    download_path="${install_path}/tmp"
+    mkdir -p "${download_path}"
+    local url archive; url="$(get_download_url "${version}")"
+    archive="${download_path}/fortran.tar.gz"
+    download_file "${url}" "${archive}" || fail "Download failed"
+    tar -xzf "${archive}" -C "${download_path}" --strip-components=1
+    rm -f "${archive}"
+  fi
+
+  mkdir -p "${install_path}"
+
+  # Copy everything from download (includes bin/, lib/, etc.)
+  cp -r "${download_path}"/* "${install_path}/" 2>/dev/null || true
+
+  # Ensure bin exists and is executable
+  if [[ -d "${install_path}/bin" ]]; then
+    chmod +x "${install_path}/bin"/* 2>/dev/null || true
+  fi
+
+  [[ -d "${install_path}/tmp" ]] && rm -rf "${install_path}/tmp"
+
+  # Verify - check for gfortran or lfortran
+  if [[ -x "${install_path}/bin/gfortran" ]]; then
+    log_success "gfortran ${version} installed"
+    "${install_path}/bin/gfortran" --version 2>&1 | head -1 || true
+  elif [[ -x "${install_path}/bin/lfortran" ]]; then
+    log_success "lfortran ${version} installed"
+    "${install_path}/bin/lfortran" --version 2>&1 | head -1 || true
+  else
+    fail "No Fortran compiler found in ${install_path}/bin"
+  fi
+}
+
+check_dependencies
+install_fortran

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+set -euo pipefail
+PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${PLUGIN_DIR}/lib/utils.bash"
+
+download_fortran() {
+  local version="${ASDF_INSTALL_VERSION:-}" download_path="${ASDF_DOWNLOAD_PATH:-}"
+  [[ -z "${version}" ]] && fail "ASDF_INSTALL_VERSION required"
+  [[ -z "${download_path}" ]] && fail "ASDF_DOWNLOAD_PATH required"
+  [[ "${ASDF_INSTALL_TYPE:-version}" != "version" ]] && fail "Only version installs supported"
+
+  log_info "Downloading fortran ${version}..."
+  mkdir -p "${download_path}"
+
+  local download_url archive_file
+  download_url="$(get_download_url "${version}")"
+  archive_file="${download_path}/fortran.tar.gz"
+
+  log_info "URL: ${download_url}"
+  download_file "${download_url}" "${archive_file}" || fail "Download failed"
+
+  log_info "Extracting..."
+  tar -xzf "${archive_file}" -C "${download_path}" --strip-components=1 || fail "Extract failed"
+  rm -f "${archive_file}"
+
+  log_success "Download complete"
+}
+
+check_dependencies
+download_fortran
